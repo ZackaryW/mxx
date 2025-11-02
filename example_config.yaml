@@ -1,0 +1,12 @@
+lifetime:
+  lifetime: 3600
+
+os:
+  cmd: start C:/Tools/MyApp/app.exe
+  kill: app.exe
+
+# app:
+#   scoop: true
+#   pkg: notepad
+#   targetExe: notepad.exe
+#   delay: 10

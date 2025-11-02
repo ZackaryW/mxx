@@ -1,0 +1,19 @@
+# MXX Runner Configuration Example
+# Save as: config.toml
+
+[lifetime]
+# How long the runner should execute (in seconds)
+lifetime = 3600  # 1 hour
+
+[os]
+# Execute system commands
+cmd = "start C:/Tools/MyApp/app.exe"
+# Optionally specify process to kill on cleanup
+kill = "app.exe"
+
+# [app]
+# # Launch application via Scoop or custom path
+# scoop = true
+# pkg = "notepad"
+# targetExe = "notepad.exe"
+# delay = 10

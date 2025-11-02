@@ -7,7 +7,10 @@ authors = [
     { name = "ZackaryW", email = "36378555+ZackaryW@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pyyaml>=6.0.3",
+    "tomli>=2.3.0",
+]
 
 [project.scripts]
 mxx = "mxx:main"
