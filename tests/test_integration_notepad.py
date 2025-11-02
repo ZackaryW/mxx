@@ -141,7 +141,7 @@ class TestNotepadIntegration:
                     if proc.info['name'] == 'Notepad.exe':
                         proc.kill()
                         proc.wait(timeout=3)
-            except:
+            except Exception:
                 pass
     
     def test_os_exec_without_kill(self):
@@ -248,7 +248,7 @@ class TestNotepadIntegration:
                 if proc.info['name'] == 'Notepad.exe':
                     notepad_running = True
                 elif proc.info['name'] == 'CalculatorApp.exe' or proc.info['name'] == 'calc.exe':
-                    calc_running = True
+                    calc_running = True # noqa
             
             assert notepad_running, "Notepad should be running"
             # Note: calc might be CalculatorApp.exe on Windows 10+
@@ -398,7 +398,7 @@ class TestRealWorldScenarios:
                     if proc.info['name'] == 'Notepad.exe':
                         proc.kill()
                         proc.wait(timeout=3)
-            except:
+            except Exception:
                 pass
 
 

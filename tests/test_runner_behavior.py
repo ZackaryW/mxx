@@ -11,7 +11,7 @@ Tests:
 """
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from mxx.runner.core.runner import MxxRunner
 from mxx.runner.core.plugin import MxxPlugin, hook
 from mxx.runner.core.callstack import PluginCallstackMeta, MxxCallstack

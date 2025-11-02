@@ -112,7 +112,7 @@ class TestCallstackRegistration:
     
     def test_callstack_created_on_instantiation(self):
         """Test that metaclass creates callstack entry."""
-        plugin = Lifetime(lifetime=100)
+        plugin = Lifetime(lifetime=100) # noqa
         
         # Check callstack was registered
         assert "lifetime" in PluginCallstackMeta._callstackMap
@@ -160,11 +160,11 @@ class TestCallstackRegistration:
         PluginCallstackMeta._callstackMap.clear()
         
         # First instance should succeed
-        plugin1 = Lifetime(lifetime=100)
+        plugin1 = Lifetime(lifetime=100) # noqa
         
         # Second instance with same __cmdname__ should fail
         with pytest.raises(Exception, match="Callstack for plugin 'lifetime' is already created"):
-            plugin2 = Lifetime(lifetime=200)
+            plugin2 = Lifetime(lifetime=200) # noqa
 
 
 class TestHookDecorator:
@@ -208,7 +208,7 @@ class TestHookDecorator:
                     pass
             
             PluginCallstackMeta._callstackMap.clear()
-            plugin = BadPlugin()
+            plugin = BadPlugin() # noqa
 
 
 if __name__ == "__main__":
