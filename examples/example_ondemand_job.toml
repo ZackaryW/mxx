@@ -1,0 +1,9 @@
+# Example on-demand job - only runs when triggered via API
+[lifetime]
+lifetime = 30  # Run for 30 seconds
+
+[os]
+cmd = "echo Manual task executed"
+
+# No [schedule] section means this is an on-demand job
+# Trigger via: mxx-client trigger manual_task

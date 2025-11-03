@@ -1,0 +1,11 @@
+# Example scheduled job - runs every day at 10:30 AM
+[lifetime]
+lifetime = 60  # Run for 60 seconds
+
+[os]
+cmd = "echo Daily backup started"
+
+[schedule]
+trigger = "cron"
+hour = 10
+minute = 30

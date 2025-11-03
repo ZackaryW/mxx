@@ -12,8 +12,22 @@ dependencies = [
     "tomli>=2.3.0",
 ]
 
+[project.optional-dependencies]
+server = [
+    "flask>=3.0.0",
+    "apscheduler>=3.10.0",
+]
+client = [
+    "click>=8.1.0",
+    "requests>=2.31.0",
+]
+all = [
+    "mxx[server,client]",
+]
+
 [project.scripts]
-mxx = "mxx:main"
+mxx-server = "mxx.server.server:main"
+mxx-cli = "mxx.client.client:cli"
 
 [build-system]
 requires = ["uv_build>=0.8.22,<0.9.0"]
