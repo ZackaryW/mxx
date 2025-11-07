@@ -6,6 +6,8 @@ import logging
 from mxx.runner.builtins.lifetime import Lifetime
 from mxx.runner.builtins.os_exec import OSExec
 from mxx.runner.builtins.app_launcher import AppLauncher
+from mxx.runner.builtins.mxxrun import MxxRun
+from mxx.runner.builtins.mxxset import MxxSet
 from mxx.runner.core.plugin import BasePlugin
 
 #home/.mxx/plugins
@@ -15,6 +17,8 @@ BUILTIN_MAPPINGS = {
     "lifetime": Lifetime,
     "os": OSExec,
     "app": AppLauncher,
+    "mxxrun": MxxRun,
+    "mxxset": MxxSet,
 }
 
 # Start with builtins, will be extended with custom plugins from PLUGIN_PATH
