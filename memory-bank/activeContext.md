@@ -3,6 +3,33 @@
 ## Recent Work Completed
 Successfully migrated builtins from two previous implementations (mxx2 and ldx-1) to the new MXX architecture.
 
+### NEW: Configuration Tool Development
+Implemented a comprehensive configuration management tool (`mxx cfg_tool`) with:
+
+1. **App Registry System** (`app.py`):
+   - Register applications with path and configuration route (`cfgroute`)
+   - Support for configuration overrides (`cfgow`) and exclusions (`cfge`)
+   - Multiple aliases per application
+   - UID-based indexing with two JSON files:
+     - `~/.mxx/apps/apps.json` - UID to config mapping
+     - `~/.mxx/apps/aliases.json` - Alias to UID mapping
+
+2. **Config Export/Import** (`cfg.py`):
+   - Export: Clean config by removing excluded and override keys
+   - Import: Smart merge preserving local exclusions and applying overrides
+   - Nested key support using `/` separator (e.g., `file/section/key`)
+   - Default export location: `~/.mxx/exports/{uid}/`
+
+3. **Independent Components** (`registry.py`):
+   - JSON config loading/saving utilities
+   - App registry management functions
+   - Get app by name/alias functionality
+
+4. **CLI Structure**:
+   - Entry point: `mxx` (configured in pyproject.toml)
+   - Command groups: `mxx app` and `mxx cfg`
+   - Cross-platform folder opening support
+
 ### Migration Improvements Made
 1. **Eliminated Model dataclasses** - Config now flows directly to plugin `__init__` parameters
 2. **Moved __cmdname__ to class level** - Required for metaclass to access during instantiation
