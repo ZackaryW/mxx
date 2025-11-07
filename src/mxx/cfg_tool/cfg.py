@@ -3,77 +3,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from .registry import get_app_by_name, load_json_config, save_json_config
-
-
-def _apply_nested_key(config: dict, key: str, value: str) -> None:
-    """
-    Apply a nested key-value pair to config dictionary.
-    Key format: filename/x/y/z = value becomes config[filename][x][y][z] = value
-    
-    Args:
-        config: Configuration dictionary to modify
-        key: Nested key in format "filename/x/y/z"
-        value: Value to set
-    """
-    parts = key.split('/')
-    current = config
-    
-    # Navigate/create nested structure
-    for part in parts[:-1]:
-        if part not in current:
-            current[part] = {}
-        current = current[part]
-    
-    # Set the final value
-    current[parts[-1]] = value
-
-
-def _remove_nested_key(config: dict, key: str) -> None:
-    """
-    Remove a nested key from config dictionary.
-    Key format: filename/x/y/z removes config[filename][x][y][z]
-    
-    Args:
-        config: Configuration dictionary to modify
-        key: Nested key in format "filename/x/y/z"
-    """
-    parts = key.split('/')
-    current = config
-    
-    try:
-        # Navigate to parent of target key
-        for part in parts[:-1]:
-            current = current[part]
-        
-        # Remove the final key
-        if parts[-1] in current:
-            del current[parts[-1]]
-    except (KeyError, TypeError):
-        # Key doesn't exist, ignore
-        pass
-
-
-def _get_nested_value(config: dict, key: str) -> str | None:
-    """
-    Get a nested value from config dictionary.
-    Key format: filename/x/y/z gets config[filename][x][y][z]
-    
-    Args:
-        config: Configuration dictionary
-        key: Nested key in format "filename/x/y/z"
-        
-    Returns:
-        Value if found, None otherwise
-    """
-    parts = key.split('/')
-    current = config
-    
-    try:
-        for part in parts:
-            current = current[part]
-        return current
-    except (KeyError, TypeError):
-        return None
+from mxx.utils.nested import nested_get, nested_set, nested_remove
 
 
 @click.group()
@@ -131,12 +61,12 @@ def export(app_name, output):
             # Apply exclusions (remove cfge keys)
             if "cfge" in app_config:
                 for exclude_key in app_config["cfge"]:
-                    _remove_nested_key(config_data, exclude_key)
+                    nested_remove(config_data, exclude_key)
             
             # Apply overrides (remove cfgow keys)
             if "cfgow" in app_config:
                 for override_key in app_config["cfgow"]:
-                    _remove_nested_key(config_data, override_key)
+                    nested_remove(config_data, override_key)
             
             # Save the processed config
             save_json_config(json_file, config_data)
@@ -220,7 +150,7 @@ def import_config(app_name, import_folder):
             preserved_values = {}
             if "cfge" in app_config:
                 for exclude_key in app_config["cfge"]:
-                    value = _get_nested_value(target_config, exclude_key)
+                    value = nested_get(target_config, exclude_key)
                     if value is not None:
                         preserved_values[exclude_key] = value
             
@@ -229,12 +159,12 @@ def import_config(app_name, import_folder):
             
             # Restore preserved excluded keys
             for key, value in preserved_values.items():
-                _apply_nested_key(target_config, key, value)
+                nested_set(target_config, key, value)
             
             # Apply overrides (cfgow)
             if "cfgow" in app_config:
                 for override_key, override_value in app_config["cfgow"].items():
-                    _apply_nested_key(target_config, override_key, override_value)
+                    nested_set(target_config, override_key, override_value)
             
             # Save updated config
             save_json_config(target_json_file, target_config)
