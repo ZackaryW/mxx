@@ -41,49 +41,89 @@
 - [x] Architecture decisions captured
 
 ## 🚧 In Progress
-None currently - migration complete.
+**Major Issue Analysis and Documentation (November 2025)** - Comprehensive codebase review completed, critical issues identified and documented.
 
-## 📋 Todo
+## 📋 Critical Issues Requiring Immediate Attention
 
-### Testing & Validation
+### 🚨 Security Issues
+- [ ] **Command injection vulnerabilities** - `os.system()` calls with user-controlled strings
+  - Location: `lifetime.py:95`, `app_launcher.py:91`
+  - Risk: Remote code execution potential
+  - Priority: CRITICAL
+- [ ] **Path traversal vulnerabilities** - No validation of file paths
+  - Location: Throughout codebase
+  - Risk: Arbitrary file access
+  - Priority: HIGH
+
+### 🏗️ Architectural Issues  
+- [ ] **Metaclass callstack map collision** - Prevents plugin re-instantiation
+  - Location: `callstack.py:33`
+  - Impact: Memory leaks, testing issues, production limitations
+  - Priority: CRITICAL
+- [ ] **Parameter inspection flaws** - Incorrect hook parameter detection
+  - Location: `runner.py:99`
+  - Impact: Runtime errors in hook execution
+  - Priority: HIGH
+- [ ] **Tight plugin coupling** - Direct imports between plugins
+  - Location: `os_exec.py:60`
+  - Impact: Circular dependencies, poor maintainability
+  - Priority: MEDIUM
+
+### � Quality Issues
+- [ ] **Silent error handling** - Failures masked by fallback logic
+  - Location: `lifetime.py:95`, throughout
+  - Impact: Debugging difficulties, hidden failures
+  - Priority: MEDIUM  
+- [ ] **Platform-specific hardcoding** - Windows-only implementation
+  - Location: All builtin plugins
+  - Impact: No cross-platform support
+  - Priority: MEDIUM
+- [ ] **Configuration validation gaps** - No input validation
+  - Location: All plugin constructors
+  - Impact: Runtime errors, security risks
+  - Priority: MEDIUM
+
+## �📋 Todo (Deprioritized)
+
+### Testing & Validation (BLOCKED until critical issues fixed)
 - [ ] Create example configuration
 - [ ] Test runner execution with all three builtins
 - [ ] Verify callstack registration and merging
 - [ ] Test inter-plugin communication (OSExec → Lifetime)
 - [ ] Validate hook execution order
 
-### Custom Plugin System
+### Custom Plugin System (DEFERRED)
 - [ ] Implement plugin discovery from PLUGIN_PATH
 - [ ] Define custom plugin loading mechanism
 - [ ] Handle plugin name conflicts
 - [ ] Add plugin validation
 
-### Configuration
+### Configuration (DEFERRED)
 - [ ] Design/implement TOML config file support
 - [ ] Define config schema
 - [ ] Add config validation
 - [ ] Create example configs
 
-### Documentation & Examples
+### Documentation & Examples (DEFERRED)
 - [ ] README with usage examples
 - [ ] Plugin development guide
 - [ ] Configuration reference
 - [ ] Migration guide for old versions
 
-### Error Handling
+### Error Handling (DEFERRED until architecture fixed)
 - [ ] Plugin initialization failure handling
 - [ ] Hook execution error propagation
 - [ ] Better error messages
 - [ ] Validation error reporting
 
-### Enhancements
+### Enhancements (DEFERRED)
 - [ ] Plugin priority/ordering system
 - [ ] Plugin dependency declaration
 - [ ] Conditional plugin loading
 - [ ] Hook execution logging/debugging
 
 ## Known Issues
-None identified yet - system untested in actual execution.
+**MAJOR UPDATE**: Comprehensive analysis revealed multiple critical issues preventing production use. Security vulnerabilities and architectural flaws must be addressed before feature development continues.
 
 ## Design Evolution Notes
 

@@ -1,9 +1,40 @@
 # Active Context: Current State & Focus
 
-## Recent Work Completed
+## Current Work: Comprehensive Issue Analysis (November 2025)
+Completed deep analysis of MXX library identifying critical issues across architecture, security, and maintainability. Focus has shifted from feature development to addressing foundational problems discovered in the codebase.
+
+### Critical Issues Discovered
+
+#### 1. **Metaclass Callstack Map Collision**
+- `PluginCallstackMeta._callstackMap` prevents plugin re-instantiation
+- Causes memory leaks and breaks multiple runner instances
+- Test fixtures require manual cleanup due to this issue
+- **Status**: Critical - blocks production use
+
+#### 2. **Security Vulnerabilities** 
+- Command injection risks in `os.system()` calls with user strings
+- Found in `lifetime.py`, `app_launcher.py` process termination
+- No input validation on executable paths or command parameters
+- **Status**: Critical - potential security exploit
+
+#### 3. **Parameter Inspection Flaws**
+- `_run_action()` incorrectly determines function parameters
+- Doesn't distinguish between `self` and `runner` parameters properly
+- Could cause hook methods to receive wrong arguments
+- **Status**: High - causes runtime errors
+
+### Architecture Analysis Results
+Identified significant design issues:
+- Tight coupling between plugins (direct imports)
+- Platform-specific hardcoding (Windows-only)
+- Configuration logic flaws in plugin vs global separation
+- Missing plugin dependency management
+- Silent error handling masking failures
+
+### Recent Work Completed
 Successfully migrated builtins from two previous implementations (mxx2 and ldx-1) to the new MXX architecture.
 
-### NEW: Configuration Tool Development
+### Configuration Tool Development
 Implemented a comprehensive configuration management tool (`mxx cfg_tool`) with:
 
 1. **App Registry System** (`app.py`):
@@ -54,24 +85,30 @@ All three builtin plugins migrated and functional:
 ### Active Design Philosophy
 **Simplicity and directness** - Avoid abstraction layers that don't add value. The new architecture enables plugins to be single, cohesive classes that directly accept and use their configuration.
 
-## Next Steps & Considerations
+## Immediate Priorities (Critical Path)
 
-### Immediate
-- Test the migrated builtins with actual runner execution
-- Verify metaclass callstack registration works correctly
-- Ensure inter-plugin communication (OSExec → Lifetime) functions
+### HIGH PRIORITY - Security & Stability
+1. **Fix command injection vulnerabilities** - Replace `os.system()` with `subprocess` calls
+2. **Resolve metaclass callstack collision** - Implement per-runner or resettable callstack management
+3. **Fix parameter inspection logic** - Properly handle bound method vs runner parameter distinction
 
-### Near Future
-- Implement custom plugin loading from `PLUGIN_PATH`
-- Consider TOML configuration file support
-- Add example usage/documentation
-- Error handling improvements
+### MEDIUM PRIORITY - Architecture
+4. **Decouple plugins** - Remove direct plugin type imports, use registry/interface pattern
+5. **Add configuration validation** - Schema validation for plugin configs before instantiation
+6. **Cross-platform compatibility** - Abstract Windows-specific operations
 
-### Questions to Resolve
+### LOW PRIORITY - Quality
+7. **Comprehensive error handling** - Replace silent fallbacks with proper error propagation
+8. **Enhanced documentation** - Code-level comments and examples
+9. **Extended test coverage** - Security, error conditions, integration scenarios
+
+### Questions Still to Resolve
 1. How should runner handle plugin initialization failures?
 2. Should there be plugin priority/ordering for execution?
 3. How will custom plugins be discovered and loaded from PLUGIN_PATH?
 4. Should there be a plugin validation/testing framework?
+5. **NEW**: How to maintain backward compatibility while fixing architectural issues?
+6. **NEW**: Should we implement plugin versioning/compatibility checks?
 
 ## Important Learnings
 
@@ -90,8 +127,14 @@ The new architecture enables:
 ### Critical Insight
 The metaclass pattern requires `__cmdname__` to be a class attribute because `PluginCallstackMeta.__call__()` accesses it immediately after `super().__call__()` returns - before the instance's `__init__` has a chance to set instance attributes.
 
-## Watch Points
-- Circular import issues when plugins reference each other
-- Windows-specific code (taskkill, paths) limits portability
-- psutil optional dependency handling in Lifetime plugin
-- Hook signature inspection relies on parameter count (fragile?)
+## Critical Watch Points
+- **SECURITY**: Command injection vulnerabilities in process termination
+- **STABILITY**: Metaclass callstack map prevents multiple runner instances
+- **RELIABILITY**: Silent error handling masks critical failures
+- **COUPLING**: Direct plugin imports create circular dependency risks
+- **PLATFORM**: Windows-specific hardcoding limits portability
+- **VALIDATION**: No configuration or input validation anywhere
+- **TESTING**: Test pollution from metaclass state requires manual cleanup
+
+## Project Status
+**CURRENT STATE**: Library has good architectural foundation but critical implementation flaws prevent production use. Immediate focus must be on security and stability fixes before adding new features.

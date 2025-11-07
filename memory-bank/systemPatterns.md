@@ -107,18 +107,72 @@ class Lifetime:
 ### Class-Level __cmdname__
 Must be class attribute for metaclass `__call__` to access it before `__init__` runs.
 
-### Hook Signature Inspection
+### Hook Signature Inspection (PROBLEMATIC)
 Runner checks if hook functions take arguments via `inspect.signature()`:
 - If parameters exist, passes `self` (the runner)
 - Otherwise calls with no arguments
 
-This enables both patterns:
+**ISSUE IDENTIFIED**: This logic is flawed because:
 ```python
-@hook("action")
-def needs_context(self, runner):  # Gets runner
-    pass
-
-@hook("action") 
-def standalone(self):  # No runner needed
-    pass
+def _run_action(self, func):
+    sig = inspect.signature(func)
+    if len(sig.parameters) > 0:  # This doesn't distinguish bound methods!
+        return func(self)  # Passes runner as first arg
+    return func()
 ```
+
+Bound methods already have `self` parameter, so `len(sig.parameters) > 0` is always true for instance methods, causing incorrect argument passing.
+
+## Identified Anti-Patterns
+
+### 1. Global Mutable State (Metaclass)
+```python
+class PluginCallstackMeta(type):
+    _callstackMap : dict[str, MxxCallstack] = {}  # Global shared state
+```
+
+**Problems**:
+- Prevents plugin re-instantiation
+- Memory leaks in long-running apps
+- Test pollution (manual cleanup required)
+- Thread safety issues
+
+### 2. Unsafe Command Execution
+```python
+os.system(f"taskkill /IM {procName} /F")  # Command injection risk
+```
+
+**Problems**:
+- No input sanitization
+- Shell injection vulnerabilities
+- Silent failure handling
+
+### 3. Tight Inter-Plugin Coupling
+```python
+from mxx.runner.builtins.lifetime import Lifetime  # Direct import
+
+def _find_lifetime_plugin(self, runner):
+    for plugin in runner.plugins.values():
+        if isinstance(plugin, Lifetime):  # Type checking creates coupling
+            return plugin
+```
+
+**Problems**:
+- Circular import risks
+- Hard to test in isolation
+- Reduces plugin composability
+
+### 4. Configuration Logic Flaws
+```python
+for k, v in cfg.items():
+    if k in MAPPINGS:
+        if isinstance(v, dict):  # Assumes plugin configs are dicts
+            pcfg[k] = v
+        else:
+            gcfg[k] = v  # Plugin configs that aren't dicts become global
+```
+
+**Problems**:
+- Plugin configs might not always be dicts
+- Logic could misclassify configurations
+- No validation of config structure
