@@ -35,6 +35,10 @@ mxx = "mxx.cfg_tool.__main__:main"
 requires = ["uv_build>=0.8.22,<0.9.0"]
 build-backend = "uv_build"
 
+[tool.uv_build]
+package-dir = "src"
+packages = ["mxx"]
+
 [dependency-groups]
 dev = [
     "psutil>=7.1.2",
