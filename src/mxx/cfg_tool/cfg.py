@@ -82,7 +82,7 @@ def export(app_name, output):
     click.echo(f"  Removed {len(app_config.get('cfgow', {}))} override key patterns")
 
 
-@cfg.command()
+@cfg.command("import")
 @click.argument("app_name")
 @click.argument("import_folder")
 def import_config(app_name, import_folder):

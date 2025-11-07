@@ -8,7 +8,7 @@ from mxx.runner.builtins.os_exec import OSExec
 from mxx.runner.builtins.app_launcher import AppLauncher
 from mxx.runner.builtins.mxxrun import MxxRun
 from mxx.runner.builtins.mxxset import MxxSet
-from mxx.runner.core.plugin import BasePlugin
+from mxx.runner.core.plugin import MxxPlugin
 
 #home/.mxx/plugins
 PLUGIN_PATH = Path.home() / ".mxx" / "plugins"
@@ -64,14 +64,14 @@ def _load_custom_plugins():
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
             
-            # Find all BasePlugin subclasses in the module
+            # Find all MxxPlugin subclasses in the module
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
                 
-                # Check if it's a class and inherits from BasePlugin
+                # Check if it's a class and inherits from MxxPlugin
                 if (isinstance(attr, type) and 
-                    issubclass(attr, BasePlugin) and 
-                    attr is not BasePlugin):
+                    issubclass(attr, MxxPlugin) and 
+                    attr is not MxxPlugin):
                     
                     # Use the plugin's name attribute or class name
                     plugin_name = getattr(attr, 'name', attr_name.lower())
