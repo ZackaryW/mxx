@@ -10,14 +10,20 @@ def app():
     pass
 
 @app.command()
-@click.argument("path", help="Path to the application folder")
-@click.argument("app", help="Executable name relative to the path")
-@click.argument("cfgroute", help="Configuration route")
+@click.argument("path")
+@click.argument("app")
+@click.argument("cfgroute")
 @click.option("-cfgow","--cfgoverwrite", multiple=True, help="Configuration overrides in KEY=VALUE format")
 @click.option("--alias", multiple=True, help="Aliases for the application")
 @click.option("-cfge", "--cfgexclude", multiple=True, help="Configuration keys to exclude")
 def register(path, app, cfgroute, cfgoverwrite, alias, cfgexclude):
-    """Register an application"""
+    """Register an application
+    
+    Arguments:
+        PATH - Path to the application folder
+        APP - Executable name relative to the path
+        CFGROUTE - Configuration route
+    """
     # Load existing registries
     apps_index, aliases_index = load_apps_registry()
     
