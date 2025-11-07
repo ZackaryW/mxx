@@ -1,7 +1,7 @@
 [project]
-name = "mxx"
+name = "mxx-tool"
 version = "0.1.0"
-description = "Add your description here"
+description = "mxx tool for automating and managing mxx framework/boilerplate projects."
 readme = "README.md"
 authors = [
     { name = "ZackaryW", email = "36378555+ZackaryW@users.noreply.github.com" }
@@ -23,7 +23,7 @@ client = [
     "requests>=2.31.0",
 ]
 all = [
-    "mxx[server,client]",
+    "mxx-tool[server,client]",
 ]
 
 [project.scripts]

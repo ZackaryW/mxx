@@ -1,0 +1,86 @@
+name: Main Branch - Publish to PyPI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Required for OIDC
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Check if version already published
+        id: check_version
+        run: |
+          pip install toml requests
+          python << 'EOF'
+          import toml
+          import requests
+          import os
+          
+          # Read current version from pyproject.toml
+          with open('pyproject.toml', 'r') as f:
+              data = toml.load(f)
+          current_version = data['project']['version']
+          package_name = data['project']['name']
+          
+          # Check PyPI for existing versions
+          should_publish = True
+          try:
+              response = requests.get(f"https://pypi.org/pypi/{package_name}/json", timeout=10)
+              if response.status_code == 200:
+                  existing_versions = list(response.json()['releases'].keys())
+                  if current_version in existing_versions:
+                      print(f"Version {current_version} already exists on PyPI - skipping publish")
+                      should_publish = False
+                  else:
+                      print(f"Version {current_version} is new - will publish")
+              else:
+                  print(f"Package not found on PyPI (this is OK for first release) - will publish")
+          except Exception as e:
+              print(f"Could not check PyPI (this is OK for new packages): {e}")
+              print("Will attempt to publish")
+          
+          # Write to GitHub output
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"should_publish={str(should_publish).lower()}\n")
+              f.write(f"version={current_version}\n")
+              f.write(f"package_name={package_name}\n")
+          EOF
+      
+      - name: Skip message
+        if: steps.check_version.outputs.should_publish == 'false'
+        run: |
+          echo "::notice::Version ${{ steps.check_version.outputs.version }} already published to PyPI. Skipping build and publish."
+      
+      - name: Install build dependencies
+        if: steps.check_version.outputs.should_publish == 'true'
+        run: pip install build
+      
+      - name: Build package
+        if: steps.check_version.outputs.should_publish == 'true'
+        run: python -m build
+      
+      - name: Publish to PyPI
+        if: steps.check_version.outputs.should_publish == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # OIDC authentication - no token needed
+        # PyPI trusted publisher must be configured at:
+        # https://pypi.org/manage/account/publishing/
+      
+      - name: Success message
+        if: steps.check_version.outputs.should_publish == 'true'
+        run: |
+          echo "::notice::Successfully published ${{ steps.check_version.outputs.package_name }} version ${{ steps.check_version.outputs.version }} to PyPI!"
