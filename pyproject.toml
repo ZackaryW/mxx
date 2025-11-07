@@ -1,6 +1,6 @@
 [project]
 name = "mxx-tool"
-version = "0.1.1"
+version = "0.1.2"
 description = "mxx tool for automating and managing mxx framework/boilerplate projects."
 readme = "README.md"
 authors = [
