@@ -368,3 +368,51 @@ def health_check():
         "status": "healthy",
         "service": "mxx-scheduler"
     }), 200
+
+
+@scheduler_bp.route('/plugins', methods=['GET'])
+def list_plugins():
+    """
+    List all available plugins in the registry.
+    
+    Query parameters:
+        type: Filter by 'builtin' or 'custom' (optional)
+        
+    Returns:
+        200: List of plugins with their details
+    """
+    try:
+        from mxx.runner.core.registry import MAPPINGS, BUILTIN_MAPPINGS
+        
+        filter_type = request.args.get('type', 'all')
+        
+        plugins = {}
+        
+        for plugin_name, plugin_class in MAPPINGS.items():
+            is_builtin = plugin_name in BUILTIN_MAPPINGS
+            
+            # Apply filter
+            if filter_type == 'builtin' and not is_builtin:
+                continue
+            elif filter_type == 'custom' and is_builtin:
+                continue
+            
+            # Get plugin metadata
+            plugins[plugin_name] = {
+                "name": plugin_name,
+                "class": plugin_class.__name__,
+                "module": plugin_class.__module__,
+                "type": "builtin" if is_builtin else "custom",
+            }
+        
+        result = {
+            "total": len(plugins),
+            "filter": filter_type,
+            "plugins": plugins
+        }
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logging.error(f"Error listing plugins: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500

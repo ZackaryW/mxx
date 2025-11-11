@@ -10,6 +10,8 @@ Provides decoupled job management with:
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
+from apscheduler.jobstores.base import JobLookupError
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from mxx.runner.core.callstack import PluginCallstackMeta
 from mxx.runner.core.runner import MxxRunner
 from mxx.server.schedule import ScheduleConfig
@@ -55,6 +57,33 @@ class SchedulerService:
         self.registry = registry or JobRegistry()
         self._lock = threading.Lock()
         self._started = False
+        
+        # Monkey-patch scheduler's remove_job to handle JobLookupError gracefully
+        self._patch_scheduler_remove_job()
+        
+        # Add listener to handle job completion
+        self.scheduler.add_listener(
+            self._job_executed_listener,
+            EVENT_JOB_EXECUTED | EVENT_JOB_ERROR
+        )
+    
+    def _patch_scheduler_remove_job(self):
+        """Patch APScheduler's remove_job to suppress JobLookupError for one-time jobs"""
+        original_remove_job = self.scheduler.remove_job
+        
+        def patched_remove_job(job_id, jobstore=None):
+            try:
+                return original_remove_job(job_id, jobstore)
+            except JobLookupError:
+                # Suppress error for already-removed jobs (common with one-time triggers)
+                logging.debug(f"Job {job_id} already removed from jobstore")
+        
+        self.scheduler.remove_job = patched_remove_job
+    
+    def _job_executed_listener(self, event):
+        """Handle job execution completion to prevent JobLookupError"""
+        # APScheduler will auto-remove one-time jobs, suppress any errors
+        pass
     
     def start(self):
         """Start the scheduler"""
@@ -130,11 +159,18 @@ class SchedulerService:
                     replace_existing=replace_existing
                 )
                 logging.info(f"Scheduled job '{job_id}' with schedule: {schedule_dict}")
+                
+                # Get next run time from the job trigger
+                scheduled_job = self.scheduler.get_job(job_id)
+                next_run = None
+                if scheduled_job and hasattr(scheduled_job.trigger, 'get_next_fire_time'):
+                    next_run = scheduled_job.trigger.get_next_fire_time(None, datetime.now())
+                
                 return {
                     "job_id": job_id,
                     "status": "scheduled",
                     "schedule": schedule_dict,
-                    "next_run": self.scheduler.get_job(job_id).next_run_time.isoformat() if self.scheduler.get_job(job_id) else None
+                    "next_run": next_run.isoformat() if next_run else None
                 }
             else:
                 # No schedule - register as on-demand job
@@ -203,6 +239,9 @@ class SchedulerService:
             # Clear callstack for this job execution
             PluginCallstackMeta._callstackMap.clear()
             
+            # Log the config being used
+            logging.info(f"Job '{job_id}' config: {context.config}")
+            
             # Create runner and execute
             runner = MxxRunner()
             runner.run(context.config)
@@ -235,7 +274,9 @@ class SchedulerService:
         }
         
         if job:
-            result["next_run_time"] = job.next_run_time.isoformat() if job.next_run_time else None
+            # In APScheduler 3.x, get next_run_time from the trigger
+            next_run = job.trigger.get_next_fire_time(None, datetime.now()) if hasattr(job.trigger, 'get_next_fire_time') else None
+            result["next_run_time"] = next_run.isoformat() if next_run else None
             result["scheduled"] = True
         else:
             result["scheduled"] = False
@@ -276,12 +317,17 @@ class SchedulerService:
         
         job = self.scheduler.get_job(job_id)
         if job:
-            job.remove()
-            logging.info(f"Cancelled job '{job_id}'")
+            try:
+                job.remove()
+                logging.info(f"Cancelled job '{job_id}'")
+            except JobLookupError:
+                # Job already removed by APScheduler
+                logging.debug(f"Job '{job_id}' was already removed")
         
         # Clean up context
         with self._lock:
-            del self.job_contexts[job_id]
+            if job_id in self.job_contexts:
+                del self.job_contexts[job_id]
         
         return True
     
@@ -334,12 +380,14 @@ class SchedulerService:
             context = JobExecutionContext(execution_id, entry.config)
             self.job_contexts[execution_id] = context
         
-        # Schedule immediate execution
+        # Schedule immediate execution (one-time job)
         self.scheduler.add_job(
             func=self._execute_job,
             args=[execution_id],
+            trigger='date',  # One-time trigger
             id=execution_id,
-            name=f"Trigger: {job_id}"
+            name=f"Trigger: {job_id}",
+            misfire_grace_time=None  # No grace period for missed runs
         )
         
         # Mark in registry

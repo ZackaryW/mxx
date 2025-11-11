@@ -49,24 +49,37 @@ class MxxRunner:
         self.gcfg = gcfg
         plugins = {}
         
+        import logging
+        logging.info(f"Runner received config: {cfg}")
+        logging.info(f"Plugin configs after export: {pcfg}")
+        
         for plugin_name, plugin_cfg in pcfg.items():
             if plugin_name not in MAPPINGS:
                 raise Exception(f"Plugin '{plugin_name}' is not registered")
 
             plugin_cls = MAPPINGS[plugin_name]
+            logging.info(f"Instantiating plugin '{plugin_name}' with config: {plugin_cfg}")
             plugin_instance = plugin_cls(**plugin_cfg)
             plugins[plugin_name] = plugin_instance
 
+        logging.info(f"Created {len(plugins)} plugin instances: {list(plugins.keys())}")
         self.plugins = plugins
 
         self.run_events(plugins)
 
     def run_events(self, plugins : dict[str, MxxPlugin]):
+        import logging
+        
         callstack = MxxCallstack()
         for plugin in plugins.values():
             plugin_callstack = PluginCallstackMeta._callstackMap[plugin.__cmdname__]
             callstack.merge(plugin_callstack)
 
+        # Sort all hooks by priority
+        callstack.sort_by_priority()
+
+        logging.info(f"Merged callstack - action hooks: {len(callstack.action)}, pre_action: {len(callstack.pre_action)}, post_action: {len(callstack.post_action)}")
+        
         try:
             # Check initial conditions
             # all_cond: all must return True (empty list = pass)

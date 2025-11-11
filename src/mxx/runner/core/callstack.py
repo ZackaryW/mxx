@@ -1,5 +1,7 @@
 
 
+
+
 from dataclasses import dataclass, field
 
 
@@ -17,6 +19,13 @@ class MxxCallstack:
     def merge(self, other : "MxxCallstack"):
         for hook_type in self.__dataclass_fields__.keys():
             getattr(self, hook_type).extend(getattr(other, hook_type))
+    
+    def sort_by_priority(self):
+        """Sort all hook lists by priority (higher priority executes first)"""
+        for hook_type in self.__dataclass_fields__.keys():
+            hook_list = getattr(self, hook_type)
+            # Sort by priority in descending order (higher number = runs first)
+            hook_list.sort(key=lambda func: getattr(func, '_mxx_hook_priority', 0), reverse=True)
 
 class PluginCallstackMeta(type):
     _callstackMap : dict[str, MxxCallstack] = {}
@@ -41,5 +50,6 @@ class PluginCallstackMeta(type):
                     raise Exception(f"Invalid hook type '{hook_type}' for function '{attr_name}'")
 
         return instance
+    
     
     

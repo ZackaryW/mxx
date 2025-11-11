@@ -73,8 +73,8 @@ def _load_custom_plugins():
                     issubclass(attr, MxxPlugin) and 
                     attr is not MxxPlugin):
                     
-                    # Use the plugin's name attribute or class name
-                    plugin_name = getattr(attr, 'name', attr_name.lower())
+                    # Use the plugin's __cmdname__ attribute or fall back to name/class name
+                    plugin_name = getattr(attr, '__cmdname__', getattr(attr, 'name', attr_name.lower()))
                     
                     # Register the plugin
                     MAPPINGS[plugin_name] = attr

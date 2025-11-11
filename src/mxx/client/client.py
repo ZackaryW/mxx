@@ -15,6 +15,7 @@ Commands:
     register    Register a new job
     unregister  Unregister a job
     registry    List registered jobs
+    plugins     List available plugins
     health      Check server health
 """
 
@@ -303,6 +304,32 @@ def info(ctx, job_id: str):
     
     try:
         response = requests.get(f"{server_url}/api/scheduler/registry/{job_id}", timeout=5)
+        handle_response(response)
+    except requests.exceptions.ConnectionError:
+        click.echo(click.style(f"Error: Cannot connect to server at {server_url}", fg='red'), err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(click.style(f"Error: {e}", fg='red'), err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.option('--builtin/--custom', default=None, help='Show only builtin or custom plugins')
+@click.pass_context
+def plugins(ctx, builtin: Optional[bool]):
+    """List available plugins in the registry"""
+    server_url = ctx.obj['SERVER_URL']
+    
+    try:
+        params = {}
+        if builtin is not None:
+            params['type'] = 'builtin' if builtin else 'custom'
+        
+        response = requests.get(
+            f"{server_url}/api/scheduler/plugins",
+            params=params,
+            timeout=5
+        )
         handle_response(response)
     except requests.exceptions.ConnectionError:
         click.echo(click.style(f"Error: Cannot connect to server at {server_url}", fg='red'), err=True)
