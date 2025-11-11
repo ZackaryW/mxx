@@ -11,11 +11,14 @@
 
 **Critical Pattern**: `__cmdname__` MUST be a class attribute, not instance attribute, because metaclass needs it before `__init__` completes.
 
-### Hook Decorator System
+**Callstack Management**: The scheduler clears `_callstackMap` before each job execution to prevent collisions. This works because jobs run in isolated threads.
+
+### Hook Decorator System with Priority
 ```python
-@hook("hook_type")
+@hook("hook_type", priority=100)
 def method_name(self, runner):
     # Hook receives runner instance for context access
+    # Higher priority number = executes first
 ```
 
 Hook types (from `enums.py`):
@@ -28,14 +31,44 @@ Hook types (from `enums.py`):
 - `on_false` - Persistent check, stops if True
 - `on_error` - Error handling
 
+Priority system:
+- Default priority: 0
+- Higher numbers execute first
+- Hooks sorted after callstack merge: `callstack.sort_by_priority()`
+- Example: Launch emulator (priority=100) before running app (priority=0)
+
 ### Runner Execution Flow
 1. `run(cfg)` - Export configs, instantiate plugins, call `run_events()`
 2. `run_events(plugins)` - Merge all plugin callstacks
-3. Execute lifecycle phases:
-   - Loop: Wait for all `on_true` and no `on_false`
+3. **Sort by priority** - All hooks ordered by priority (high to low)
+4. Execute lifecycle phases:
    - Check: `all_cond` AND `any_cond`
    - Execute: `pre_action` → `action` → `post_action`
+   - Loop: Wait for all `on_true` and no `on_false` (0.5s sleep between checks)
    - Error: `on_error` if exception
+
+### Scheduler Service Architecture
+```
+SchedulerService (scheduler.py)
+├── BackgroundScheduler (APScheduler)
+│   ├── ThreadPoolExecutor (max_workers=10)
+│   └── Job registry and execution
+├── JobExecutionContext - Tracks job state
+│   ├── status: pending/running/completed/failed
+│   ├── start_time, end_time
+│   └── error message if failed
+└── JobRegistry - Persistent job configs
+    └── ~/.mxx/jobs/ (TOML files)
+
+REST API (routes.py)
+├── POST /api/scheduler/jobs - Register/schedule job
+├── GET /api/scheduler/jobs - List all jobs
+├── POST /api/scheduler/jobs/{id}/trigger - Trigger on-demand
+├── GET /api/scheduler/plugins - List available plugins
+└── Various other management endpoints
+```
+
+**Key Pattern**: Jobs execute `runner.run(config)` in background thread. Runner blocks for full lifetime, allowing proper cleanup via `post_action` hooks.
 
 ### Plugin Instantiation Pattern
 ```python
@@ -79,7 +112,66 @@ for plugin in runner.plugins.values():
 - `BUILTIN_MAPPINGS` - Core plugins dict
 - `MAPPINGS` - Starts as copy of builtins, extended with custom plugins
 - `PLUGIN_PATH` - User plugin directory (~/.mxx/plugins)
-- Future: Dynamic loading of custom plugins into MAPPINGS
+- Dynamic loading: Custom plugins loaded on registry initialization
+- Plugin discovery: Scans .py files, finds MxxPlugin subclasses, registers by `__cmdname__`
+
+### Custom Plugin Loading
+```python
+# registry.py initialization
+def _load_custom_plugins():
+    for plugin_file in PLUGIN_PATH.glob("*.py"):
+        # Load module dynamically
+        # Find MxxPlugin subclasses
+        # Register by __cmdname__ attribute
+        plugin_name = getattr(attr, '__cmdname__', ...)
+        MAPPINGS[plugin_name] = plugin_class
+```
+
+## Subprocess Management Patterns
+
+### Detached Process Spawning (Windows)
+```python
+DETACHED_PROCESS = 0x00000008
+CREATE_NEW_PROCESS_GROUP = 0x00000200
+CREATE_NO_WINDOW = 0x08000000
+
+subprocess.Popen(
+    args,
+    creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+    stdin=subprocess.DEVNULL,
+    close_fds=True  # CRITICAL: prevents blocking on inherited file descriptors
+)
+```
+
+**Critical**: `close_fds=True` is essential to prevent Python from waiting for child process handles.
+
+### APScheduler Integration Patterns
+
+#### One-Time Job Execution
+```python
+scheduler.add_job(
+    func=callback,
+    args=[job_id],
+    trigger='date',  # Important: specifies one-time execution
+    id=unique_id,
+    misfire_grace_time=None
+)
+```
+
+#### Handling JobLookupError Race Condition
+APScheduler 3.x has a bug where it tries to remove completed one-time jobs twice. Solution:
+```python
+# Monkey-patch scheduler.remove_job
+original_remove = scheduler.remove_job
+def patched_remove(job_id, jobstore=None):
+    try:
+        return original_remove(job_id, jobstore)
+    except JobLookupError:
+        pass  # Suppress double-removal error
+scheduler.remove_job = patched_remove
+```
 
 ## Key Design Decisions
 

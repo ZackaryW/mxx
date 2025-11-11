@@ -1,103 +1,114 @@
 # Active Context: Current State & Focus
 
-## Current Work: Comprehensive Issue Analysis (November 2025)
-Completed deep analysis of MXX library identifying critical issues across architecture, security, and maintainability. Focus has shifted from feature development to addressing foundational problems discovered in the codebase.
+## Current Work: Scheduler Server & Plugin System Enhancements (November 2025)
 
-### Critical Issues Discovered
+### Recent Accomplishments
 
-#### 1. **Metaclass Callstack Map Collision**
-- `PluginCallstackMeta._callstackMap` prevents plugin re-instantiation
-- Causes memory leaks and breaks multiple runner instances
-- Test fixtures require manual cleanup due to this issue
-- **Status**: Critical - blocks production use
+#### 1. **Scheduler Server Implementation**
+Implemented a complete Flask-based scheduler service for managing plugin execution jobs:
+- APScheduler integration with background execution
+- Job registry system for persistent job configurations
+- On-demand and scheduled job execution support
+- RESTful API for job management
+- Client CLI tool (`mxx-cli`) for remote control
 
-#### 2. **Security Vulnerabilities** 
-- Command injection risks in `os.system()` calls with user strings
-- Found in `lifetime.py`, `app_launcher.py` process termination
-- No input validation on executable paths or command parameters
-- **Status**: Critical - potential security exploit
+#### 2. **Plugin Priority System**
+Added execution priority control to plugin hooks:
+- `@hook("action", priority=100)` - High priority executes first
+- Default priority is 0, higher numbers run first
+- Automatic sorting of all hooks by priority after callstack merge
+- Enables proper ordering (e.g., launch emulator before running app)
 
-#### 3. **Parameter Inspection Flaws**
-- `_run_action()` incorrectly determines function parameters
-- Doesn't distinguish between `self` and `runner` parameters properly
-- Could cause hook methods to receive wrong arguments
-- **Status**: High - causes runtime errors
+#### 3. **APScheduler JobLookupError Fix**
+Resolved race condition with one-time job removal:
+- Monkey-patched `scheduler.remove_job()` to suppress `JobLookupError`
+- Added proper `trigger='date'` for triggered jobs
+- Prevents noisy exceptions from APScheduler's internal double-removal bug
 
-### Architecture Analysis Results
-Identified significant design issues:
-- Tight coupling between plugins (direct imports)
-- Platform-specific hardcoding (Windows-only)
-- Configuration logic flaws in plugin vs global separation
-- Missing plugin dependency management
-- Silent error handling masking failures
+#### 4. **Plugin Registry CLI Command**
+Added `mxx-cli plugins` command to inspect loaded plugins:
+- Lists all builtin and custom plugins
+- Shows class names, modules, and documentation
+- Filter options: `--builtin` or `--custom`
+- Helps debug plugin loading issues
 
-### Recent Work Completed
-Successfully migrated builtins from two previous implementations (mxx2 and ldx-1) to the new MXX architecture.
+#### 5. **LDPlayer Custom Plugin**
+Created production custom plugin for LDPlayer emulator:
+- Located at `~/.mxx/plugins/ld.py`
+- Launches/quits LDPlayer instances via `ldpx` CLI
+- Uses detached process spawning (non-blocking)
+- Proper Windows process flags: `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW`
+- Added `close_fds=True` to prevent file descriptor inheritance blocking
 
-### Configuration Tool Development
-Implemented a comprehensive configuration management tool (`mxx cfg_tool`) with:
+### Current Architecture State
 
-1. **App Registry System** (`app.py`):
-   - Register applications with path and configuration route (`cfgroute`)
-   - Support for configuration overrides (`cfgow`) and exclusions (`cfge`)
-   - Multiple aliases per application
-   - UID-based indexing with two JSON files:
-     - `~/.mxx/apps/apps.json` - UID to config mapping
-     - `~/.mxx/apps/aliases.json` - Alias to UID mapping
+#### Scheduler Service Components
+```
+mxx-server (Flask app)
+├── scheduler.py - SchedulerService with APScheduler
+├── routes.py - REST API endpoints
+├── registry.py - JobRegistry for persistent jobs
+├── schedule.py - ScheduleConfig dataclass
+└── flask_runner.py - Job execution wrapper
+```
 
-2. **Config Export/Import** (`cfg.py`):
-   - Export: Clean config by removing excluded and override keys
-   - Import: Smart merge preserving local exclusions and applying overrides
-   - Nested key support using `/` separator (e.g., `file/section/key`)
-   - Default export location: `~/.mxx/exports/{uid}/`
-
-3. **Independent Components** (`registry.py`):
-   - JSON config loading/saving utilities
-   - App registry management functions
-   - Get app by name/alias functionality
-
-4. **CLI Structure**:
-   - Entry point: `mxx` (configured in pyproject.toml)
-   - Command groups: `mxx app` and `mxx cfg`
-   - Cross-platform folder opening support
-
-### Migration Improvements Made
-1. **Eliminated Model dataclasses** - Config now flows directly to plugin `__init__` parameters
-2. **Moved __cmdname__ to class level** - Required for metaclass to access during instantiation
-3. **Removed pre_action config loading** - Config loads in `__init__` where runner passes it
-4. **Updated registry with actual types** - Changed from string paths to imported class references
-5. **Made MAPPINGS extensible** - Starts as copy of BUILTIN_MAPPINGS for future custom plugin loading
-
-### Current Plugin Status
-All three builtin plugins migrated and functional:
-- `Lifetime` - Time control and kill list management
-- `OSExec` - Command execution with lifetime integration
-- `AppLauncher` - Scoop/custom path executable launching
-
-## Current Architecture State
-
-### Working Patterns
-- Plugin instantiation via `plugin_cls(**plugin_cfg)`
-- Hook methods receive `runner` parameter for context access
-- Inter-plugin communication via `runner.plugins`
-- Class-level `__cmdname__` for metaclass registration
+#### Plugin System Enhancements
+- Hook priority system fully operational
+- Custom plugin loading from `~/.mxx/plugins/`
+- Plugin registry inspection via API and CLI
+- Proper subprocess detachment for non-blocking execution
 
 ### Active Design Philosophy
-**Simplicity and directness** - Avoid abstraction layers that don't add value. The new architecture enables plugins to be single, cohesive classes that directly accept and use their configuration.
+**Job orchestration with proper lifecycle management** - The scheduler runs jobs in thread pool, each job gets full runner lifecycle including lifetime management, ensuring proper cleanup of launched processes.
 
-## Immediate Priorities (Critical Path)
+## Critical Fixes Applied
 
-### HIGH PRIORITY - Security & Stability
-1. **Fix command injection vulnerabilities** - Replace `os.system()` with `subprocess` calls
-2. **Resolve metaclass callstack collision** - Implement per-runner or resettable callstack management
-3. **Fix parameter inspection logic** - Properly handle bound method vs runner parameter distinction
+### 1. Plugin Registry Loading
+**Issue**: Custom plugins weren't registering properly
+**Fix**: Changed `getattr(attr, 'name', ...)` to `getattr(attr, '__cmdname__', ...)` in registry loader
 
-### MEDIUM PRIORITY - Architecture
-4. **Decouple plugins** - Remove direct plugin type imports, use registry/interface pattern
-5. **Add configuration validation** - Schema validation for plugin configs before instantiation
-6. **Cross-platform compatibility** - Abstract Windows-specific operations
+### 2. Subprocess Blocking
+**Issue**: `subprocess.Popen` was blocking even with `DETACHED_PROCESS`
+**Fix**: Added `close_fds=True` and additional process creation flags
 
-### LOW PRIORITY - Quality
+### 3. Incorrect CLI Command Structure
+**Issue**: Plugin used `ldpx console exec launch` but correct syntax is `ldpx console launch`
+**Fix**: Removed non-existent `exec` subcommand
+
+### 4. APScheduler Race Condition
+**Issue**: JobLookupError when APScheduler tries to remove completed one-time jobs
+**Fix**: Monkey-patch + proper trigger configuration + exception suppression
+
+## Immediate Next Steps
+
+### Testing & Validation
+1. Verify scheduler executes jobs with proper plugin ordering
+2. Test lifetime-controlled job cleanup
+3. Validate multi-job concurrent execution
+4. Confirm LDPlayer launch/quit cycle works end-to-end
+
+### Potential Enhancements
+- Job execution history/logging
+- Job status persistence across server restarts
+- Webhook notifications on job completion
+- Web UI for scheduler management
+
+## Known Issues Being Monitored
+
+### Metaclass Callstack Clearing
+Currently using `PluginCallstackMeta._callstackMap.clear()` before each job execution. This works for scheduler but may cause issues if:
+- Multiple runners execute simultaneously in same process
+- Plugins are instantiated outside of job context
+
+**Mitigation**: Scheduler uses thread pool, each job runs in own thread with cleared callstack at start.
+
+### Debug Logging Added
+Temporary debug logging added to track:
+- Job config being executed
+- Plugin instantiation with parameters
+- Hook counts in merged callstack
+
+Should be removed or made conditional once system is stable.
 7. **Comprehensive error handling** - Replace silent fallbacks with proper error propagation
 8. **Enhanced documentation** - Code-level comments and examples
 9. **Extended test coverage** - Security, error conditions, integration scenarios
