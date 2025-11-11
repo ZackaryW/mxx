@@ -89,15 +89,16 @@ class ScheduleConfig:
 
 def extract_schedule(config: dict) -> Optional[ScheduleConfig]:
     """
-    Extract schedule configuration from a job config dict.
+    Extract and remove schedule configuration from a job config dict.
     
     Args:
-        config: Job configuration dict that may contain 'schedule' key
+        config: Job configuration dict that may contain 'schedule' key.
+                The schedule key will be removed from this dict if present.
         
     Returns:
         ScheduleConfig if schedule section exists, None otherwise
     """
-    schedule_data = config.get('schedule')
+    schedule_data = config.pop('schedule', None)
     if not schedule_data:
         return None
     
@@ -105,3 +106,4 @@ def extract_schedule(config: dict) -> Optional[ScheduleConfig]:
         return ScheduleConfig.from_dict(schedule_data)
     except Exception as e:
         raise ValueError(f"Invalid schedule configuration: {e}")
+

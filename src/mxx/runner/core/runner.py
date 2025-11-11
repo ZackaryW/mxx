@@ -55,12 +55,18 @@ class MxxRunner:
         
         for plugin_name, plugin_cfg in pcfg.items():
             if plugin_name not in MAPPINGS:
-                raise Exception(f"Plugin '{plugin_name}' is not registered")
+                logging.warning(f"Plugin '{plugin_name}' is not registered, skipping...")
+                continue
 
-            plugin_cls = MAPPINGS[plugin_name]
-            logging.info(f"Instantiating plugin '{plugin_name}' with config: {plugin_cfg}")
-            plugin_instance = plugin_cls(**plugin_cfg)
-            plugins[plugin_name] = plugin_instance
+            try:
+                plugin_cls = MAPPINGS[plugin_name]
+                logging.info(f"Instantiating plugin '{plugin_name}' with config: {plugin_cfg}")
+                plugin_instance = plugin_cls(**plugin_cfg)
+                plugins[plugin_name] = plugin_instance
+            except Exception as e:
+                logging.error(f"Failed to instantiate plugin '{plugin_name}': {e}", exc_info=True)
+                # Continue with other plugins instead of failing completely
+                continue
 
         logging.info(f"Created {len(plugins)} plugin instances: {list(plugins.keys())}")
         self.plugins = plugins
