@@ -17,6 +17,8 @@ import logging
 import os
 from pathlib import Path
 import argparse
+import signal
+import sys
 
 from mxx.server.flask_runner import FlaskMxxRunner
 from mxx.server.routes import scheduler_bp
@@ -27,6 +29,21 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Global reference for signal handler
+_flask_runner = None
+
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully"""
+    global _flask_runner
+    logger.info(f"Received signal {signum}, shutting down...")
+    if _flask_runner:
+        try:
+            _flask_runner.stop()
+        except Exception as e:
+            logger.error(f"Error during shutdown: {e}")
+    sys.exit(0)
 
 
 def get_jobs_directory() -> Path:
@@ -155,6 +172,10 @@ Examples:
     
     args = parser.parse_args()
     
+    # Setup signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     # Create app
     logger.info("Starting MXX Scheduler Server...")
     logger.info(f"Host: {args.host}")
@@ -164,13 +185,14 @@ Examples:
     app = create_app(jobs_dir=args.jobs_dir)
     
     # Start the FlaskMxxRunner to load configs and start scheduler
-    flask_runner = app.config['FLASK_RUNNER']
-    flask_runner.start()
+    _flask_runner = app.config['FLASK_RUNNER']
+    flask_runner = _flask_runner
     
-    logger.info("Server ready!")
-    
-    # Run Flask app
     try:
+        flask_runner.start()
+        logger.info("Server ready!")
+        
+        # Run Flask app
         app.run(
             host=args.host,
             port=args.port,
@@ -179,9 +201,14 @@ Examples:
         )
     except KeyboardInterrupt:
         logger.info("Shutting down...")
+    except Exception as e:
+        logger.error(f"Server error: {e}", exc_info=True)
     finally:
-        flask_runner.stop()
-        logger.info("Server stopped")
+        try:
+            flask_runner.stop()
+            logger.info("Server stopped")
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
 
 
 if __name__ == '__main__':

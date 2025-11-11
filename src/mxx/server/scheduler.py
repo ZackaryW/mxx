@@ -95,9 +95,13 @@ class SchedulerService:
     def stop(self):
         """Stop the scheduler and wait for jobs to complete"""
         if self._started:
-            self.scheduler.shutdown(wait=True)
-            self._started = False
-            logging.info("Scheduler stopped")
+            try:
+                self.scheduler.shutdown(wait=True)
+                self._started = False
+                logging.info("Scheduler stopped")
+            except Exception as e:
+                logging.error(f"Error stopping scheduler: {e}")
+                self._started = False
     
     def schedule_job(
         self,
