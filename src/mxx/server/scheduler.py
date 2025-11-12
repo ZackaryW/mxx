@@ -360,7 +360,7 @@ class SchedulerService:
         """
         Trigger an on-demand job to run immediately.
         
-        This creates a one-time execution of a registered job.
+        This submits the job directly to the executor for immediate execution.
         
         Args:
             job_id: Job identifier from registry
@@ -384,20 +384,21 @@ class SchedulerService:
             context = JobExecutionContext(execution_id, entry.config)
             self.job_contexts[execution_id] = context
         
-        # Schedule immediate execution (one-time job)
-        self.scheduler.add_job(
-            func=self._execute_job,
-            args=[execution_id],
-            trigger='date',  # One-time trigger
-            id=execution_id,
-            name=f"Trigger: {job_id}",
-            misfire_grace_time=None  # No grace period for missed runs
+        # Submit directly to executor for immediate execution
+        # This bypasses the scheduler's queue and runs immediately
+        import threading
+        thread = threading.Thread(
+            target=self._execute_job,
+            args=(execution_id,),
+            name=f"Trigger-{execution_id}",
+            daemon=True
         )
+        thread.start()
         
         # Mark in registry
         self.registry.mark_triggered(job_id)
         
-        logging.info(f"Triggered on-demand job '{job_id}' as execution '{execution_id}'")
+        logging.info(f"Triggered on-demand job '{job_id}' as execution '{execution_id}' (executing immediately)")
         
         return {
             "job_id": job_id,

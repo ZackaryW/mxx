@@ -21,7 +21,8 @@ def app():
 @click.option("-cfgow","--cfgoverwrite", multiple=True, help="Configuration overrides in KEY=VALUE format")
 @click.option("--alias", multiple=True, help="Aliases for the application")
 @click.option("-cfge", "--cfgexclude", multiple=True, help="Configuration keys to exclude")
-def register(path, app, cfgroute, cfgoverwrite, alias, cfgexclude):
+@click.option("--resolve-path", is_flag=True, help="Resolve symlinks/junctions to actual path (default: preserve as-is)")
+def register(path, app, cfgroute, cfgoverwrite, alias, cfgexclude, resolve_path):
     """Register an application
     
     Arguments:
@@ -44,9 +45,16 @@ def register(path, app, cfgroute, cfgoverwrite, alias, cfgexclude):
         else:
             click.echo(f"Warning: Invalid configuration override format '{override}'. Expected KEY=VALUE", err=True)
     
+    # Handle path - preserve as-is unless --resolve-path is specified
+    if resolve_path:
+        app_path = str(Path(path).resolve())
+    else:
+        # Normalize but don't resolve symlinks
+        app_path = str(Path(path).absolute())
+    
     # Create the app entry
     app_entry = {
-        "path": str(Path(path).resolve()),
+        "path": app_path,
         "app": app,
         "cfgroute": cfgroute,
         "cfgow": cfgow_dict
